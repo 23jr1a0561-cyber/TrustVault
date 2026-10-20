@@ -39,8 +39,6 @@ describe("TrustVault document permission security", () => {
     process.env.JWT_SECRET =
       process.env.JWT_SECRET || "test-only-secret-for-jest";
 
-    console.log("Connecting to trustvault_test...");
-
     await mongoose.connect(
       "mongodb://127.0.0.1:27017/trustvault_test",
       {
@@ -50,11 +48,6 @@ describe("TrustVault document permission security", () => {
           os: require("os"),
         },
       }
-    );
-
-    console.log(
-      "Connected to test database:",
-      mongoose.connection.name
     );
 
     await Promise.all([
@@ -111,10 +104,7 @@ describe("TrustVault document permission security", () => {
     const response = await request(app)
       .post(`/api/documents/${documentRecord._id}/permissions`)
       .set("Authorization", `Bearer ${ownerToken}`)
-      .send({
-        email: viewer.email,
-        accessLevel: "read",
-      });
+      .send({ email: viewer.email, accessLevel: "read" });
 
     expect(response.status).toBe(200);
 
@@ -132,10 +122,7 @@ describe("TrustVault document permission security", () => {
     const response = await request(app)
       .post(`/api/documents/${documentRecord._id}/permissions`)
       .set("Authorization", `Bearer ${viewerToken}`)
-      .send({
-        email: outsider.email,
-        accessLevel: "read",
-      });
+      .send({ email: outsider.email, accessLevel: "read" });
 
     expect(response.status).toBe(403);
   });
@@ -190,5 +177,33 @@ describe("TrustVault document permission security", () => {
       .set("Authorization", `Bearer ${viewerToken}`);
 
     expect(response.status).toBe(403);
+  });
+
+  test("Database should prevent duplicate active permissions", async () => {
+    await Permission.create({
+      document: documentRecord._id,
+      grantedBy: owner._id,
+      grantedTo: viewer._id,
+      accessLevel: "read",
+      revokedAt: null,
+    });
+
+    await expect(
+      Permission.create({
+        document: documentRecord._id,
+        grantedBy: owner._id,
+        grantedTo: viewer._id,
+        accessLevel: "edit",
+        revokedAt: null,
+      })
+    ).rejects.toMatchObject({ code: 11000 });
+
+    const count = await Permission.countDocuments({
+      document: documentRecord._id,
+      grantedTo: viewer._id,
+      revokedAt: null,
+    });
+
+    expect(count).toBe(1);
   });
 });
