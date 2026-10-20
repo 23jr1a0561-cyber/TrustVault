@@ -1,3 +1,4 @@
+
 const express = require("express");
 const fs = require("fs/promises");
 const path = require("path");
@@ -39,7 +40,7 @@ async function getDocumentAccess(documentId, userId) {
   };
 }
 
-// Upload a document
+// Upload a document with file signature validation
 router.post(
   "/upload",
   authenticateToken,
@@ -54,6 +55,7 @@ router.post(
       next();
     });
   },
+  upload.validateFileSignature,
   async (req, res) => {
     let savedFilePath = null;
 
@@ -362,7 +364,7 @@ router.post("/:id/permissions", authenticateToken, async (req, res) => {
         },
       },
       {
-        new: true,
+        returnDocument: "after",
         upsert: true,
         runValidators: true,
       }
@@ -436,7 +438,7 @@ router.delete(
         {
           $set: { revokedAt: new Date() },
         },
-        { new: true }
+        { returnDocument: "after" }
       );
 
       if (!permission) {

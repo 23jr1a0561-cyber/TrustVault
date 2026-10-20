@@ -1,5 +1,6 @@
 
 const request = require("supertest");
+const jwt = require("jsonwebtoken");
 const app = require("../src/app");
 
 describe("TrustVault API", () => {
@@ -67,5 +68,35 @@ describe("TrustVault API", () => {
     );
 
     expect(response.status).toBe(401);
+  });
+
+  test("Fake PDF content should be rejected with a valid token", async () => {
+    const secret = process.env.JWT_SECRET;
+
+    if (!secret) {
+      throw new Error(
+        "JWT_SECRET must be configured in the test environment"
+      );
+    }
+
+    const token = jwt.sign(
+      { id: "507f1f77bcf86cd799439011", role: "owner" },
+      secret,
+      { expiresIn: "5m" }
+    );
+
+    const response = await request(app)
+      .post("/api/documents/upload")
+      .set("Authorization", `Bearer ${token}`)
+      .field("name", "Fake PDF Test")
+      .attach("file", Buffer.from("This is not a real PDF"), {
+        filename: "fake.pdf",
+        contentType: "application/pdf",
+      });
+
+    expect(response.status).toBe(400);
+    expect(response.body.message).toBe(
+      "File content does not match the declared file type."
+    );
   });
 });
