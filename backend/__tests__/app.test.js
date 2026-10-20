@@ -5,16 +5,19 @@ const app = require("../src/app");
 describe("TrustVault API", () => {
   test("Health endpoint should return 200", async () => {
     const response = await request(app).get("/api/health");
+
     expect(response.status).toBe(200);
   });
 
   test("Document list should reject requests without a token", async () => {
     const response = await request(app).get("/api/documents");
+
     expect(response.status).toBe(401);
   });
 
   test("Document upload should reject requests without a token", async () => {
     const response = await request(app).post("/api/documents/upload");
+
     expect(response.status).toBe(401);
   });
 
@@ -22,11 +25,13 @@ describe("TrustVault API", () => {
     const response = await request(app).get(
       "/api/documents/507f1f77bcf86cd799439011/download"
     );
+
     expect(response.status).toBe(401);
   });
 
   test("Audit logs should reject requests without a token", async () => {
     const response = await request(app).get("/api/audit");
+
     expect(response.status).toBe(401);
   });
 
@@ -46,5 +51,21 @@ describe("TrustVault API", () => {
 
     expect(response.status).toBe(401);
     expect(response.body.message).toBe("Invalid or expired token");
+  });
+
+  test("Permission grant should reject requests without a token", async () => {
+    const response = await request(app).post(
+      "/api/documents/507f1f77bcf86cd799439011/permissions"
+    );
+
+    expect(response.status).toBe(401);
+  });
+
+  test("Permission revoke should reject requests without a token", async () => {
+    const response = await request(app).delete(
+      "/api/documents/507f1f77bcf86cd799439011/permissions/507f1f77bcf86cd799439012"
+    );
+
+    expect(response.status).toBe(401);
   });
 });
