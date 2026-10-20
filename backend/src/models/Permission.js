@@ -39,4 +39,13 @@ permissionSchema.index({
   revokedAt: 1,
 });
 
+// Prevent duplicate active permissions for the same document and user.
+permissionSchema.index(
+  { document: 1, grantedTo: 1 },
+  {
+    unique: true,
+    partialFilterExpression: { revokedAt: null },
+  }
+);
+
 module.exports = mongoose.model("Permission", permissionSchema);
