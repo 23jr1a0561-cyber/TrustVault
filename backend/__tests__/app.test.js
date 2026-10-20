@@ -1,4 +1,3 @@
-
 const request = require("supertest");
 const app = require("../src/app");
 
@@ -17,6 +16,14 @@ describe("TrustVault API", () => {
 
   test("Document upload should reject requests without a token", async () => {
     const response = await request(app).post("/api/documents/upload");
+
+    expect(response.status).toBe(401);
+  });
+
+  test("Document download should reject requests without a token", async () => {
+    const response = await request(app).get(
+      "/api/documents/507f1f77bcf86cd799439011/download"
+    );
 
     expect(response.status).toBe(401);
   });

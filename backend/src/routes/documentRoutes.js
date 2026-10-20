@@ -1,4 +1,3 @@
-
 const express = require("express");
 const fs = require("fs/promises");
 const path = require("path");
@@ -51,6 +50,7 @@ router.post(
           message: error.message || "File upload failed",
         });
       }
+
       next();
     });
   },
@@ -66,7 +66,11 @@ router.post(
 
       savedFilePath = req.file.path;
 
-      const { name, category = "General", description = "" } = req.body;
+      const {
+        name,
+        category = "General",
+        description = "",
+      } = req.body;
 
       if (typeof name !== "string" || !name.trim()) {
         await fs.unlink(savedFilePath).catch(() => {});
@@ -151,7 +155,7 @@ router.get("/", authenticateToken, async (req, res) => {
         .lean(),
     ]);
 
-    // Keep only the latest active permission per document
+    // Keep the latest active permission for each document
     const permissionMap = new Map();
 
     for (const permission of permissions) {
@@ -162,8 +166,12 @@ router.get("/", authenticateToken, async (req, res) => {
       }
     }
 
+    const ownedIds = new Set(
+      owned.map((doc) => doc._id.toString())
+    );
+
     const sharedIds = [...permissionMap.keys()].filter(
-      (id) => !owned.some((doc) => doc._id.toString() === id)
+      (id) => !ownedIds.has(id)
     );
 
     const shared = sharedIds.length
@@ -180,7 +188,7 @@ router.get("/", authenticateToken, async (req, res) => {
       })),
       ...shared.map((doc) => ({
         ...doc,
-        accessLevel: permissionMap.get(doc._id.toString()) || "read",
+        accessLevel: permissionMap.get(doc._id.toString()),
       })),
     ];
 
@@ -191,6 +199,93 @@ router.get("/", authenticateToken, async (req, res) => {
     return res.status(500).json({
       message: "Unable to retrieve documents",
     });
+  }
+});
+
+// Secure document download — owner or active read/edit permission
+router.get("/:id/download", authenticateToken, async (req, res) => {
+  try {
+    const { document, accessLevel } = await getDocumentAccess(
+      req.params.id,
+      req.user.id
+    );
+
+    if (!document) {
+      return res.status(404).json({
+        message: "Document not found",
+      });
+    }
+
+    if (!accessLevel) {
+      await recordAudit({
+        actor: req.user.id,
+        action: "ACCESS_DENIED",
+        document: document._id,
+        outcome: "DENIED",
+        details: "Unauthorized document download attempt",
+      });
+
+      return res.status(403).json({
+        message: "You do not have permission to download this document",
+      });
+    }
+
+    const uploadsDirectory = path.resolve(__dirname, "../uploads");
+    const filePath = path.resolve(
+      uploadsDirectory,
+      document.storageKey
+    );
+
+    // Prevent storage path traversal
+    if (path.dirname(filePath) !== uploadsDirectory) {
+      await recordAudit({
+        actor: req.user.id,
+        action: "ACCESS_DENIED",
+        document: document._id,
+        outcome: "DENIED",
+        details: "Invalid document storage path",
+      });
+
+      return res.status(400).json({
+        message: "Invalid document storage path",
+      });
+    }
+
+    try {
+      await fs.access(filePath);
+    } catch {
+      return res.status(404).json({
+        message: "Document file not found",
+      });
+    }
+
+    await recordAudit({
+      actor: req.user.id,
+      action: "DOWNLOAD",
+      document: document._id,
+      outcome: "SUCCESS",
+      details: "Document download initiated",
+    });
+
+    return res.download(filePath, document.originalName, (error) => {
+      if (error) {
+        console.error("Download response error:", error.message);
+
+        if (!res.headersSent) {
+          res.status(500).json({
+            message: "Unable to download document",
+          });
+        }
+      }
+    });
+  } catch (error) {
+    console.error("Document download error:", error.stack || error);
+
+    if (!res.headersSent) {
+      return res.status(500).json({
+        message: "Unable to download document",
+      });
+    }
   }
 });
 
