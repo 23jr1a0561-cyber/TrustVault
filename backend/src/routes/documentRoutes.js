@@ -291,6 +291,53 @@ router.get("/:id/download", authenticateToken, async (req, res) => {
   }
 });
 
+/* List active permissions for a document owner */
+router.get("/:id/permissions", authenticateToken, async (req, res) => {
+  try {
+    const { document } = await getDocumentAccess(
+      req.params.id,
+      req.user.id
+    );
+
+    if (!document) {
+      return res.status(404).json({
+        message: "Document not found",
+      });
+    }
+
+    if (document.owner.toString() !== req.user.id.toString()) {
+      return res.status(403).json({
+        message: "Only the document owner can view permissions",
+      });
+    }
+
+    const permissions = await Permission.find({
+      document: document._id,
+      revokedAt: null,
+    })
+      .populate("grantedTo", "name email")
+      .select("grantedTo accessLevel createdAt")
+      .lean();
+
+    return res.json({
+      permissions: permissions
+        .filter((permission) => permission.grantedTo)
+        .map((permission) => ({
+          userId: permission.grantedTo._id,
+          name: permission.grantedTo.name,
+          email: permission.grantedTo.email,
+          accessLevel: permission.accessLevel,
+        })),
+    });
+  } catch (error) {
+    console.error("List permissions error:", error);
+
+    return res.status(500).json({
+      message: "Unable to retrieve permissions",
+    });
+  }
+});
+
 // Grant or update read/edit permission — owner only
 router.post("/:id/permissions", authenticateToken, async (req, res) => {
   try {
