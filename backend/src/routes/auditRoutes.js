@@ -1,4 +1,3 @@
-
 const express = require("express");
 const AuditLog = require("../models/AuditLog");
 require("../models/Document");
@@ -8,7 +7,7 @@ const { verifyAuditChain } = require("../services/verifyAuditService");
 const router = express.Router();
 
 // View audit logs
-// Admin can view all logs; other users can view only their own logs
+// Admin sees all logs; other users see only their own logs
 router.get("/", authenticateToken, async (req, res) => {
   try {
     const filter =
@@ -34,15 +33,9 @@ router.get("/", authenticateToken, async (req, res) => {
   }
 });
 
-// Verify audit chain — admin only
+// Verify audit chain — authenticated users can verify integrity
 router.get("/verify", authenticateToken, async (req, res) => {
   try {
-    if (req.user.role !== "admin") {
-      return res.status(403).json({
-        message: "Admin access required",
-      });
-    }
-
     const result = await verifyAuditChain();
 
     return res.status(result.valid ? 200 : 409).json(result);
