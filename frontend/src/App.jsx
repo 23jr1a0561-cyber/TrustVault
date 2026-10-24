@@ -63,6 +63,8 @@ function App() {
 
   const [documents, setDocuments] = useState([]);
   const [auditLogs, setAuditLogs] = useState([]);
+  const [verifyingAudit, setVerifyingAudit] = useState(false);
+  const [auditVerification, setAuditVerification] = useState(null);
   const [loading, setLoading] = useState(false);
   const [uploading, setUploading] = useState(false);
 
@@ -145,6 +147,27 @@ function App() {
       );
     } catch {
       setAuditLogs([]);
+    }
+  }
+
+  async function handleVerifyAuditChain() {
+    setVerifyingAudit(true);
+    setAuditVerification(null);
+    setError("");
+    setMessage("");
+
+    try {
+      const result = await apiRequest("/audit/verify", { token });
+      setAuditVerification(result);
+      if (result.valid) {
+        setMessage(`Audit chain verified: ${result.entriesChecked} entries checked.`);
+      } else {
+        setError(`Audit chain verification failed: ${result.reason || "Integrity mismatch"}.`);
+      }
+    } catch (err) {
+      setError(err.message || "Audit-chain verification failed.");
+    } finally {
+      setVerifyingAudit(false);
     }
   }
 
@@ -717,13 +740,23 @@ function App() {
                   <h2>Activity history</h2>
                   <p>Recorded events in your workspace.</p>
                 </div>
-                <button
-                  className="secondary-button"
-                  type="button"
-                  onClick={() => loadAuditLogs(token)}
-                >
-                  Refresh
-                </button>
+                <div className="action-buttons">
+                  <button
+                    className="secondary-button"
+                    type="button"
+                    onClick={() => loadAuditLogs(token)}
+                  >
+                    Refresh
+                  </button>
+                  <button
+                    className="primary-button"
+                    type="button"
+                    onClick={handleVerifyAuditChain}
+                    disabled={verifyingAudit}
+                  >
+                    {verifyingAudit ? "Verifying..." : "Verify Audit Chain"}
+                  </button>
+                </div>
               </div>
 
               {auditLogs.length === 0 ? (
