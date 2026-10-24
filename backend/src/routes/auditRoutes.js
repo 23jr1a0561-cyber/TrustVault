@@ -1,3 +1,4 @@
+
 const express = require("express");
 const AuditLog = require("../models/AuditLog");
 require("../models/Document");
@@ -6,16 +7,16 @@ const { verifyAuditChain } = require("../services/verifyAuditService");
 
 const router = express.Router();
 
-// View audit logs — admin only
+// View audit logs
+// Admin can view all logs; other users can view only their own logs
 router.get("/", authenticateToken, async (req, res) => {
   try {
-    if (req.user.role !== "admin") {
-      return res.status(403).json({
-        message: "Admin access required",
-      });
-    }
+    const filter =
+      req.user.role === "admin"
+        ? {}
+        : { actor: req.user.id };
 
-    const logs = await AuditLog.find()
+    const logs = await AuditLog.find(filter)
       .sort({ createdAt: -1, _id: -1 })
       .limit(100)
       .populate("actor", "name email")
