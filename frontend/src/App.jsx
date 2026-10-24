@@ -1,7 +1,9 @@
 import { useEffect, useMemo, useState } from "react";
 import "./App.css";
 
-const API = "https://trustvault-c163.onrender.com/api";
+
+const API = "https://trustvault-backend-vlbg.onrender.com/api";
+
 
 const navigation = [
   { label: "Overview", icon: "◈" },
