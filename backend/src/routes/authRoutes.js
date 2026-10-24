@@ -93,6 +93,7 @@ router.post("/login", async (req, res) => {
     const user = await User.findOne({
       email: email.trim().toLowerCase(),
     }).select("+passwordHash");
+    console.log("Login user found:", !!user);
 
     if (!user || !(await bcrypt.compare(password, user.passwordHash))) {
       await recordAudit({
