@@ -22,13 +22,16 @@ router.post("/register", async (req, res) => {
       password.length > 128
     ) {
       return res.status(400).json({
-        message: "Enter a valid name, email, and password (8–128 characters).",
+        message:
+          "Enter a valid name, email, and password (8–128 characters).",
       });
     }
 
     const normalizedEmail = email.trim().toLowerCase();
 
-    const existingUser = await User.findOne({ email: normalizedEmail });
+    const existingUser = await User.findOne({
+      email: normalizedEmail,
+    });
 
     if (existingUser) {
       return res.status(409).json({
@@ -38,7 +41,6 @@ router.post("/register", async (req, res) => {
 
     const passwordHash = await bcrypt.hash(password, 12);
 
-    // Public registration must never allow self-assigned admin roles.
     const user = await User.create({
       name: name.trim(),
       email: normalizedEmail,
@@ -53,8 +55,19 @@ router.post("/register", async (req, res) => {
       details: "User registered",
     });
 
+    // Generate token after successful registration
+    const token = jwt.sign(
+      {
+        id: user._id.toString(),
+        role: user.role,
+      },
+      process.env.JWT_SECRET,
+      { expiresIn: "1h" }
+    );
+
     return res.status(201).json({
-      message: "Account created successfully. Please log in.",
+      message: "Account created successfully.",
+      token,
       user: {
         id: user._id,
         name: user.name,
@@ -69,8 +82,11 @@ router.post("/register", async (req, res) => {
       });
     }
 
-    console.error("Registration error:", error.message);
-    return res.status(500).json({ message: "Registration failed." });
+    console.error("Registration error:", error.stack || error);
+
+    return res.status(500).json({
+      message: "Registration failed.",
+    });
   }
 });
 
@@ -93,6 +109,7 @@ router.post("/login", async (req, res) => {
     const user = await User.findOne({
       email: email.trim().toLowerCase(),
     }).select("+passwordHash");
+
     console.log("Login user found:", !!user);
 
     if (!user || !(await bcrypt.compare(password, user.passwordHash))) {
@@ -108,7 +125,10 @@ router.post("/login", async (req, res) => {
     }
 
     const token = jwt.sign(
-      { id: user._id.toString(), role: user.role },
+      {
+        id: user._id.toString(),
+        role: user.role,
+      },
       process.env.JWT_SECRET,
       { expiresIn: "1h" }
     );
@@ -120,7 +140,7 @@ router.post("/login", async (req, res) => {
       details: "User logged in",
     });
 
-    return res.json({
+    return res.status(200).json({
       message: "Login successful.",
       token,
       user: {
@@ -131,8 +151,11 @@ router.post("/login", async (req, res) => {
       },
     });
   } catch (error) {
-    console.error("Login error:", error.message);
-    return res.status(500).json({ message: "Login failed." });
+    console.error("Login error:", error.stack || error);
+
+    return res.status(500).json({
+      message: "Login failed.",
+    });
   }
 });
 
