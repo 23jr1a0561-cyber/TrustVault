@@ -12,16 +12,20 @@ const documentRoutes = require("./routes/documentRoutes");
 
 const app = express();
 
+// Trust Render's reverse proxy for client IP detection
+app.set("trust proxy", 1);
+
 app.disable("x-powered-by");
 
 // Security headers
 app.use(helmet());
 
-// Frontend access - allow the Vite development ports
+// Allow local development and deployed frontend
 const allowedOrigins = [
   "http://localhost:5173",
   "http://localhost:5174",
   "http://localhost:5175",
+  "https://trustvault-1-o1iu.onrender.com",
 ];
 
 app.use(
