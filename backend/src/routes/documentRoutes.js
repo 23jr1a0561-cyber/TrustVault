@@ -1,4 +1,3 @@
-
 const express = require("express");
 const fs = require("fs/promises");
 const path = require("path");
@@ -40,7 +39,7 @@ async function getDocumentAccess(documentId, userId) {
   };
 }
 
-// Upload a document with file signature validation
+// Upload a document
 router.post(
   "/upload",
   authenticateToken,
@@ -157,7 +156,6 @@ router.get("/", authenticateToken, async (req, res) => {
         .lean(),
     ]);
 
-    // Keep the latest active permission for each document
     const permissionMap = new Map();
 
     for (const permission of permissions) {
@@ -204,7 +202,87 @@ router.get("/", authenticateToken, async (req, res) => {
   }
 });
 
-// Secure document download — owner or active read/edit permission
+// DELETE document — owner only
+router.delete("/:id", authenticateToken, async (req, res) => {
+  try {
+    if (!/^[a-f\d]{24}$/i.test(req.params.id)) {
+      return res.status(400).json({
+        message: "Invalid document ID",
+      });
+    }
+
+    const document = await Document.findById(req.params.id);
+
+    if (!document) {
+      return res.status(404).json({
+        message: "Document not found",
+      });
+    }
+
+    if (document.owner.toString() !== req.user.id.toString()) {
+      await recordAudit({
+        actor: req.user.id,
+        action: "ACCESS_DENIED",
+        document: document._id,
+        outcome: "DENIED",
+        details: "Non-owner attempted to delete document",
+      });
+
+      return res.status(403).json({
+        message: "Only the document owner can delete this document",
+      });
+    }
+
+    const uploadsDirectory = path.resolve(__dirname, "../uploads");
+    const filePath = path.resolve(
+      uploadsDirectory,
+      document.storageKey
+    );
+
+    if (path.dirname(filePath) !== uploadsDirectory) {
+      return res.status(400).json({
+        message: "Invalid document storage path",
+      });
+    }
+
+    // Remove stored file if it exists
+    try {
+      await fs.unlink(filePath);
+    } catch (error) {
+      if (error.code !== "ENOENT") {
+        throw error;
+      }
+    }
+
+    await Permission.deleteMany({
+      document: document._id,
+    });
+
+    await Document.deleteOne({
+      _id: document._id,
+    });
+
+    await recordAudit({
+      actor: req.user.id,
+      action: "DELETE",
+      document: document._id,
+      outcome: "SUCCESS",
+      details: "Document deleted",
+    });
+
+    return res.json({
+      message: "Document deleted successfully",
+    });
+  } catch (error) {
+    console.error("Delete document error:", error.stack || error);
+
+    return res.status(500).json({
+      message: "Unable to delete document",
+    });
+  }
+});
+
+// Secure document download
 router.get("/:id/download", authenticateToken, async (req, res) => {
   try {
     const { document, accessLevel } = await getDocumentAccess(
@@ -238,16 +316,7 @@ router.get("/:id/download", authenticateToken, async (req, res) => {
       document.storageKey
     );
 
-    // Prevent storage path traversal
     if (path.dirname(filePath) !== uploadsDirectory) {
-      await recordAudit({
-        actor: req.user.id,
-        action: "ACCESS_DENIED",
-        document: document._id,
-        outcome: "DENIED",
-        details: "Invalid document storage path",
-      });
-
       return res.status(400).json({
         message: "Invalid document storage path",
       });
@@ -291,7 +360,7 @@ router.get("/:id/download", authenticateToken, async (req, res) => {
   }
 });
 
-/* List active permissions for a document owner */
+// List active permissions
 router.get("/:id/permissions", authenticateToken, async (req, res) => {
   try {
     const { document } = await getDocumentAccess(
@@ -338,7 +407,7 @@ router.get("/:id/permissions", authenticateToken, async (req, res) => {
   }
 });
 
-// Grant or update read/edit permission — owner only
+// Grant or update permission — owner only
 router.post("/:id/permissions", authenticateToken, async (req, res) => {
   try {
     const { document } = await getDocumentAccess(
