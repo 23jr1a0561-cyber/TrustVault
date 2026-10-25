@@ -784,15 +784,40 @@ function App() {
                     <p>Get to the tasks you use most.</p>
                   </div>
                 </div>
-                <div className="action-buttons">
-                  <button className="primary-button" type="button" onClick={() => setActiveTab("My Documents")}>
-                    + Upload / Manage Documents
+                <div className="quick-action-grid">
+                  <button className="quick-action-card upload-action" type="button" onClick={() => setActiveTab("My Documents")}>
+                    <span className="quick-action-icon">⇧</span>
+                    <span className="quick-action-copy"><strong>Upload New Document</strong><small>Add a file to your secure vault</small></span>
+                    <span className="quick-action-arrow">↗</span>
                   </button>
-                  <button className="secondary-button" type="button" onClick={() => { setActiveTab("Audit Logs"); loadAuditLogs(token); }}>
-                    View Audit Logs
+                  <button className="quick-action-card verify-action" type="button" onClick={handleVerifyAuditChain} disabled={verifyingAudit}>
+                    <span className="quick-action-icon">✓</span>
+                    <span className="quick-action-copy"><strong>{verifyingAudit ? "Verifying Integrity..." : "Verify Audit Integrity"}</strong><small>Check your audit chain integrity</small></span>
+                    <span className="quick-action-arrow">↗</span>
                   </button>
-                  <button className="secondary-button" type="button" onClick={() => setActiveTab("Shared with me")}>
-                    Shared with me
+                  <button className="quick-action-card access-action" type="button" onClick={() => {
+                    if (ownedDocuments.length > 0) {
+                      setActiveTab("My Documents");
+                      openShareForm(ownedDocuments[0]);
+                    } else {
+                      setError("Upload a document first to manage its access permissions.");
+                      setActiveTab("My Documents");
+                    }
+                  }}>
+                    <span className="quick-action-icon">⌑</span>
+                    <span className="quick-action-copy"><strong>Manage Access</strong><small>Review document permissions</small></span>
+                    <span className="quick-action-arrow">↗</span>
+                  </button>
+                  <button className="quick-action-card download-action" type="button" onClick={() => {
+                    if (documents.length > 0) handleDownload(documents[0]);
+                    else {
+                      setError("No documents available to download yet.");
+                      setActiveTab("My Documents");
+                    }
+                  }}>
+                    <span className="quick-action-icon">↓</span>
+                    <span className="quick-action-copy"><strong>Download a Document</strong><small>Quickly retrieve a vault file</small></span>
+                    <span className="quick-action-arrow">↗</span>
                   </button>
                 </div>
               </section>
