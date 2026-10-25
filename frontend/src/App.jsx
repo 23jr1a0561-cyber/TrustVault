@@ -1,9 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import "./App.css";
 
-
 const API = "https://trustvault-backend-vlbg.onrender.com/api";
-
 
 const navigation = [
   { label: "Overview", icon: "◈" },
@@ -60,6 +58,10 @@ function App() {
     email: "",
     password: "",
   });
+  const [confirmPassword, setConfirmPassword] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
+  const [authLoading, setAuthLoading] = useState(false);
+  const [deletingDocId, setDeletingDocId] = useState("");
 
   const [documents, setDocuments] = useState([]);
   const [auditLogs, setAuditLogs] = useState([]);
@@ -176,6 +178,12 @@ function App() {
     setError("");
     setMessage("");
 
+    if (authMode === "register" && authForm.password !== confirmPassword) {
+      setError("Passwords do not match.");
+      return;
+    }
+
+    setAuthLoading(true);
     try {
       const endpoint =
         authMode === "login" ? "/auth/login" : "/auth/register";
@@ -202,6 +210,8 @@ function App() {
       setMessage("Successfully signed in.");
     } catch (err) {
       setError(err.message || "Authentication failed.");
+    } finally {
+      setAuthLoading(false);
     }
   }
 
@@ -292,6 +302,37 @@ function App() {
       setMessage("Download started.");
     } catch (err) {
       setError(err.message || "Download failed.");
+    }
+  }
+
+  async function handleDeleteDocument(doc) {
+    const docId = doc._id || doc.id;
+    if (!docId) {
+      setError("This document has no valid ID and cannot be deleted.");
+      return;
+    }
+    const name = doc.name || doc.originalName || "this document";
+    if (!window.confirm(`Permanently delete "${name}"? This cannot be undone.`)) return;
+
+    setDeletingDocId(docId);
+    setError("");
+    setMessage("");
+    try {
+      const result = await apiRequest(`/documents/${docId}`, {
+        method: "DELETE",
+        token,
+      });
+      setMessage(result?.message || "Document deleted successfully.");
+      if (sharingDoc && (sharingDoc._id || sharingDoc.id) === docId) {
+        setSharingDoc(null);
+        setDocPermissions([]);
+      }
+      await loadDocuments(token);
+      await loadAuditLogs(token);
+    } catch (err) {
+      setError(err.message || "Unable to delete this document. Check that the backend supports document deletion.");
+    } finally {
+      setDeletingDocId("");
     }
   }
 
@@ -525,22 +566,50 @@ function App() {
 
                 <label>
                   Password
-                  <input
-                    type="password"
-                    value={authForm.password}
-                    onChange={(e) =>
-                      setAuthForm({ ...authForm, password: e.target.value })
-                    }
-                    placeholder="Enter password"
-                    required
-                  />
+                  <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+                    <input
+                      style={{ flex: 1, minWidth: 0 }}
+                      type={showPassword ? "text" : "password"}
+                      value={authForm.password}
+                      onChange={(e) =>
+                        setAuthForm({ ...authForm, password: e.target.value })
+                      }
+                      placeholder="Enter password"
+                      required
+                    />
+                    <button
+                      className="secondary-button small-button"
+                      type="button"
+                      onClick={() => setShowPassword((current) => !current)}
+                      aria-label={showPassword ? "Hide password" : "Show password"}
+                    >
+                      {showPassword ? "Hide" : "Show"}
+                    </button>
+                  </div>
                 </label>
+
+                {authMode === "register" && (
+                  <label>
+                    Confirm password
+                    <input
+                      type={showPassword ? "text" : "password"}
+                      value={confirmPassword}
+                      onChange={(e) => setConfirmPassword(e.target.value)}
+                      placeholder="Re-enter password"
+                      required
+                    />
+                  </label>
+                )}
 
                 {error && <p className="error-message">{error}</p>}
                 {message && <p className="success-message">{message}</p>}
 
-                <button className="primary-button" type="submit">
-                  {authMode === "login" ? "Sign in securely" : "Create account"}
+                <button className="primary-button" type="submit" disabled={authLoading}>
+                  {authLoading
+                    ? "Please wait..."
+                    : authMode === "login"
+                      ? "Sign in securely"
+                      : "Create account"}
                 </button>
               </form>
 
@@ -555,6 +624,8 @@ function App() {
                     setAuthMode(authMode === "login" ? "register" : "login");
                     setError("");
                     setMessage("");
+                    setConfirmPassword("");
+                    setShowPassword(false);
                   }}
                 >
                   {authMode === "login" ? "Register" : "Sign in"}
@@ -702,6 +773,61 @@ function App() {
                 <span className="stat-caption">Available in your workspace</span>
               </div>
             </section>
+          )}
+
+          {activeTab === "Overview" && (
+            <>
+              <section className="content-card">
+                <div className="card-heading">
+                  <div>
+                    <h2>Quick Actions</h2>
+                    <p>Get to the tasks you use most.</p>
+                  </div>
+                </div>
+                <div className="action-buttons">
+                  <button className="primary-button" type="button" onClick={() => setActiveTab("My Documents")}>
+                    + Upload / Manage Documents
+                  </button>
+                  <button className="secondary-button" type="button" onClick={() => { setActiveTab("Audit Logs"); loadAuditLogs(token); }}>
+                    View Audit Logs
+                  </button>
+                  <button className="secondary-button" type="button" onClick={() => setActiveTab("Shared with me")}>
+                    Shared with me
+                  </button>
+                </div>
+              </section>
+              <section className="content-card">
+                <div className="card-heading">
+                  <div>
+                    <h2>Recent Activity</h2>
+                    <p>Latest recorded activity in your vault.</p>
+                  </div>
+                  <button className="secondary-button" type="button" onClick={() => loadAuditLogs(token)}>Refresh</button>
+                </div>
+                {auditLogs.length === 0 ? (
+                  <div className="empty-state">
+                    <span className="empty-icon">◷</span>
+                    <h3>No recent activity yet</h3>
+                    <p>Document and sharing activity will appear here when recorded.</p>
+                  </div>
+                ) : (
+                  <div className="table-wrap">
+                    <table className="documents-table">
+                      <thead><tr><th>Activity</th><th>Details</th><th>Date</th></tr></thead>
+                      <tbody>
+                        {auditLogs.slice(0, 5).map((log, index) => (
+                          <tr key={log._id || log.id || index}>
+                            <td>{log.action || "Activity"}</td>
+                            <td>{log.details || log.description || "TrustVault activity"}</td>
+                            <td>{log.createdAt ? new Date(log.createdAt).toLocaleString() : "—"}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
+              </section>
+            </>
           )}
 
           {activeTab === "My Documents" && (
@@ -879,13 +1005,23 @@ function App() {
                                 </button>
 
                                 {isOwner && (
-                                  <button
-                                    className="primary-button small-button"
-                                    type="button"
-                                    onClick={() => openShareForm(doc)}
-                                  >
-                                    Manage access
-                                  </button>
+                                  <>
+                                    <button
+                                      className="primary-button small-button"
+                                      type="button"
+                                      onClick={() => openShareForm(doc)}
+                                    >
+                                      Manage access
+                                    </button>
+                                    <button
+                                      className="danger-button"
+                                      type="button"
+                                      disabled={deletingDocId === docId}
+                                      onClick={() => handleDeleteDocument(doc)}
+                                    >
+                                      {deletingDocId === docId ? "Deleting..." : "Delete"}
+                                    </button>
+                                  </>
                                 )}
                               </div>
                             </td>

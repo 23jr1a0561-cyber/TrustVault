@@ -25,6 +25,7 @@ const allowedOrigins = [
   "http://localhost:5173",
   "http://localhost:5174",
   "http://localhost:5175",
+  "http://localhost:5176",
   "https://trustvault-1-o1iu.onrender.com",
 ];
 
@@ -63,13 +64,9 @@ app.get("/api/health", (req, res) => {
   });
 });
 
-// Authentication routes
+// API routes
 app.use("/api/auth", authRoutes);
-
-// Audit routes
 app.use("/api/audit", auditRoutes);
-
-// Document routes
 app.use("/api/documents", documentRoutes);
 
 module.exports = app;
