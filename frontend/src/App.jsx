@@ -755,7 +755,7 @@ function App() {
             </div>
           )}
 
-          {activeTab !== "Audit Logs" && (
+          {activeTab === "Overview" && (
             <section className="stats-grid">
               <div className="stat-card">
                 <span className="stat-label">MY DOCUMENTS</span>
@@ -920,7 +920,7 @@ function App() {
                 </div>
               )}
             </section>
-          ) : (
+          ) : (activeTab === "My Documents" || activeTab === "Shared with me") ? (
             <section className="content-card">
               <div className="card-heading documents-heading">
                 <div>
@@ -1033,7 +1033,7 @@ function App() {
                 </div>
               )}
             </section>
-          )}
+          ) : null}
 
           {sharingDoc && (
             <section className="content-card share-card">
