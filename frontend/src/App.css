@@ -5105,3 +5105,46 @@ a {
     width: 100%;
   }
 }
+
+
+/* Attractive, functional overview quick actions */
+.vault-app .quick-action-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 14px;
+  padding: 0 28px 28px;
+}
+.vault-app .quick-action-card {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  width: 100%;
+  min-width: 0;
+  padding: 18px;
+  text-align: left;
+  border: 1px solid #e1e8f3;
+  border-radius: 13px;
+  background: #fff;
+  color: #172642;
+  box-shadow: 0 5px 16px #1a2b4c08;
+  transition: transform .18s ease, box-shadow .18s ease, border-color .18s ease;
+}
+.vault-app .quick-action-card:hover:not(:disabled) {
+  transform: translateY(-2px);
+  box-shadow: 0 10px 24px #1a2b4c12;
+  border-color: #c7d5fa;
+}
+.vault-app .quick-action-card:disabled { opacity: .7; cursor: wait; }
+.vault-app .quick-action-icon {
+  display: grid; place-items: center; flex: 0 0 46px; height: 46px;
+  border-radius: 12px; font-size: 25px; font-weight: 700;
+}
+.vault-app .upload-action .quick-action-icon { color: #3158b8; background: #eaf0ff; }
+.vault-app .verify-action .quick-action-icon { color: #16845b; background: #e5f8ef; }
+.vault-app .access-action .quick-action-icon { color: #7951c5; background: #f0eaff; }
+.vault-app .download-action .quick-action-icon { color: #a87518; background: #fff4dd; }
+.vault-app .quick-action-copy { display: flex; flex-direction: column; gap: 5px; flex: 1; min-width: 0; }
+.vault-app .quick-action-copy strong { font: 700 13px/1.4 'Manrope', sans-serif; color: #202c45; }
+.vault-app .quick-action-copy small { color: #8290a9; font-size: 11px; line-height: 1.5; }
+.vault-app .quick-action-arrow { color: #7185c5; font-size: 19px; }
+@media (max-width: 650px) { .vault-app .quick-action-grid { grid-template-columns: 1fr; padding: 0 16px 18px; } }
