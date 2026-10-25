@@ -808,15 +808,21 @@ function App() {
                     <span className="quick-action-copy"><strong>Manage Access</strong><small>Review document permissions</small></span>
                     <span className="quick-action-arrow">↗</span>
                   </button>
-                  <button className="quick-action-card download-action" type="button" onClick={() => {
-                    if (documents.length > 0) handleDownload(documents[0]);
-                    else {
-                      setError("No documents available to download yet.");
+                  <button
+                    className="quick-action-card download-action"
+                    type="button"
+                    onClick={() => {
+                      setError("");
+                      setMessage("");
+                      setSearch("");
                       setActiveTab("My Documents");
-                    }
-                  }}>
+                    }}
+                  >
                     <span className="quick-action-icon">↓</span>
-                    <span className="quick-action-copy"><strong>Download a Document</strong><small>Quickly retrieve a vault file</small></span>
+                    <span className="quick-action-copy">
+                      <strong>Download a Document</strong>
+                      <small>Select a document to download</small>
+                    </span>
                     <span className="quick-action-arrow">↗</span>
                   </button>
                 </div>
